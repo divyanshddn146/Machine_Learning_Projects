@@ -8,6 +8,8 @@ import cv2
 import os
 from scipy import ndimage as nd
 
+
+
 st.markdown(
     """
     <style>
@@ -16,28 +18,13 @@ st.markdown(
         background-image: url('https://img.freepik.com/free-photo/flat-lay-beer-bottles-with-chips-nuts_23-2148754981.jpg?t=st=1737990572~exp=1737994172~hmac=e8b153437b6ef164d138d6caac73be5d1776fa91bd4d9e005e50eb6115f3bc3b&w=1060');
         background-size: cover;
         background-position: center;
-
-    .custom-uploader {
-        background-color: #FDC41B;
-        color: white;
-        border-radius: 12px;
-        padding: 10px 20px;
-        text-align: center;
-        font-weight: bold;
-        font-size: 18px;
-        cursor: pointer;
-    }
     
-    .custom-uploader:hover {
-        background-color: #F1A825;
-        color: black;
-    
-    }
     }
     </style>
     """,
     unsafe_allow_html=True
 )
+
 
 # Load your trained model (use the appropriate format, .h5 or .keras)
 model_path = os.path.join(os.path.dirname(__file__), 'model.keras')
@@ -96,40 +83,77 @@ st.markdown(
         color: transparent;
         font-size: 5 rem; 
         font-weight: bold;
+        margin-top: -50px; 
+        padding-top: 0px;
+        padding-bottom: 50px; 
     }
     </style>
     """,
     unsafe_allow_html=True
 )
 
-st.title("Potato Chip Damage detection")
+st.title("Potato Chip Damage Detection")
+test_images_1 = {
+    "Sample Defective Chip 1": os.path.join(os.path.dirname(__file__), 'Pepsico/Test/Defective/IMG_20210319_004846.jpg'),
+    "Sample Defective Chip 2": os.path.join(os.path.dirname(__file__), 'Pepsico/Test/Defective/IMG_20210319_010344.jpg'),
+    "Sample Defective Chip 3": os.path.join(os.path.dirname(__file__), 'Pepsico/Test/Defective/IMG_20210319_004929.jpg'),
+    "Sample Not Defective Chip 1": os.path.join(os.path.dirname(__file__), 'Pepsico/Test/Not Defective/IMG_20210318_231229.jpg'),
+    "Sample Not Defective Chip 2": os.path.join(os.path.dirname(__file__), 'Pepsico/Test/Not Defective/IMG_20210318_231650.jpg'),
+    "Sample Not Defective Chip 3": os.path.join(os.path.dirname(__file__), 'Pepsico/Test/Not Defective/IMG_20210318_232125.jpg')
+}
+st.markdown(
+    """
+    <style>
+        section[data-testid="stSidebar"] {
+            width: 300px !important;
+        }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+# Sidebar for file upload
+with st.sidebar:
+    st.write("### Upload your potato chip image")
+    uploaded_image = st.file_uploader("",type=['jpg', 'png', 'jpeg', 'webp'])
 
-# Upload image
-uploaded_image = st.file_uploader("Choose a potato chip image", type=['jpg', 'png', 'jpeg','webp'])
+    st.write("### Or Select a Sample Image:")
 
-if uploaded_image is not None:
-    # Create two columns for layout
+    selected_test_image = None
+    cols = 1
+    for i, (label, path) in enumerate(test_images_1.items()):
+        if st.button(f"🔍 {label}"):
+            selected_test_image = path
+
+    
+
+# Determine the image to process
+if uploaded_image:
+    image_to_process = uploaded_image
+elif selected_test_image:
+    image_to_process = selected_test_image
+else:
+    image_to_process = None
+
+# Process the selected/uploaded image
+if image_to_process:
     col1, col2 = st.columns(2)
-
+    
     with col1:
-        # Show the uploaded image in the first column
-        st.image(uploaded_image, caption='Uploaded Image', width=300)
+        st.image(image_to_process, caption="Selected Image", width=300)
 
     try:
-        # Preprocess the image and classify
-        img_array = preprocess_image(uploaded_image)
+        img_array = preprocess_image(image_to_process)
         prediction = classify_image(img_array)
-        damage_percentage, segmented_image = segment_image(uploaded_image)
+        damage_percentage, segmented_image = segment_image(image_to_process)
 
         with col2:
-            # Display the highlighted image in the second column
-            st.image(segmented_image, caption='Highlighted Damage', width=300)
+            st.image(segmented_image, caption="Highlighted Damage", width=300)
 
-        # Display prediction result and damage percentage
+        # Display classification result
         if prediction[0] > 0.5:
-            st.markdown(f"<h2 style='color:#75F94D;'>This chip is not damaged.</h2>", unsafe_allow_html=True)
+            st.markdown("<h2 style='color:#75F94D;'>This chip is not damaged.</h2>", unsafe_allow_html=True)
         else:
             st.markdown(f"<h2 style='color:#ED0025;'>This chip is damaged with {damage_percentage:.2%} damage.</h2>", unsafe_allow_html=True)
 
     except Exception as e:
-        st.write(f"Error: {e}")
+        st.error(f"Error: {e}")

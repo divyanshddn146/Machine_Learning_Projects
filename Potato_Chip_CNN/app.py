@@ -6,6 +6,7 @@ from matplotlib.image import imread
 import colorsys
 import cv2
 import os
+from scipy import ndimage as nd
 
 st.markdown(
     """
@@ -57,36 +58,32 @@ def classify_image(img_array):
 
 def segment_image(uploaded_image):
     input_image = imread(uploaded_image)
-    input_image_normalized = input_image/255
-    R,G,B = input_image_normalized[:,:,0],input_image_normalized[:,:,1],input_image_normalized[:,:,2]
-    H, S, V = np.vectorize(lambda r, g, b: colorsys.rgb_to_hsv(r, g, b))(R,G,B)
-    V_normalized = np.uint8((255*V))
+    hsv = cv2.cvtColor(input_image,cv2.COLOR_RGB2HSV)
+    mask = cv2.inRange(hsv,(0,0,0),(180, 255, 65))
+
+    closed_mask = nd.binary_closing(mask,np.ones((12,12)))
+
+    mask_colored = np.zeros_like(input_image)
+    mask_colored[closed_mask == 1] = [255, 0, 0]
     
-    # Convert to LAB color space
-    lab_image = cv2.cvtColor(input_image, cv2.COLOR_BGR2LAB)
+    damaged_pixels = np.sum(closed_mask == 1)
 
-    # Threshold the L channel to detect darker areas
-    l_channel = lab_image[:, :, 0]
-    _, full_chip_mask = cv2.threshold(l_channel, 190, 255, cv2.THRESH_BINARY_INV)  # Shadows have low L values
+    hsv_chip = cv2.cvtColor(input_image,cv2.COLOR_RGB2HSV)
+    mask_chip = cv2.inRange(hsv,(20,50,110),(30, 255, 255))
 
-    kernel1 = np.ones((50,50), np.uint8)  # 5x5 kernel for closing
-    closed1 = cv2.morphologyEx(full_chip_mask, cv2.MORPH_CLOSE, kernel1)
+    closed_mask_chip = nd.binary_closing(mask_chip,np.ones((3,3)))
 
-    total_pixels = np.sum(full_chip_mask==255)
+    mask_colored_chip = np.zeros_like(input_image)
+    mask_colored_chip[closed_mask_chip == 1] = [0, 255, 0]  
 
-    # Threshold the L channel to detect darker areas
-    _, damage_chip_mask = cv2.threshold(l_channel, 100, 255, cv2.THRESH_BINARY_INV)  # Shadows have low L values
+    overlay = cv2.addWeighted(input_image, 0.7, mask_colored, 0.3, 0)
+    overlay = cv2.addWeighted(overlay, 1, mask_colored_chip, 0.3, 0)
 
-    kernel2 = np.ones((5,5), np.uint8)  # 5x5 kernel for closing
-    closed2 = cv2.morphologyEx(damage_chip_mask, cv2.MORPH_CLOSE, kernel2)
+    undamaged_pixels = np.sum(closed_mask_chip == 1)
 
-    input_image_rgb = cv2.cvtColor(input_image, cv2.COLOR_BGR2RGB)
-    highlighted_image = input_image.copy()
-    highlighted_image[damage_chip_mask == 255] = (255,0,0) 
+    total_pixels = undamaged_pixels + damaged_pixels
 
-    damaged_pixels = np.sum(damage_chip_mask==255)
-
-    return damaged_pixels/total_pixels,highlighted_image
+    return damaged_pixels/total_pixels,overlay
 
 # Streamlit interface
 st.markdown(

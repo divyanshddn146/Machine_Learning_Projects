@@ -5,6 +5,7 @@ import numpy as np
 from matplotlib.image import imread
 import colorsys
 import cv2
+import os
 
 st.markdown(
     """
@@ -38,7 +39,8 @@ st.markdown(
 )
 
 # Load your trained model (use the appropriate format, .h5 or .keras)
-model = tf.keras.models.load_model('C:/Users/divya/Desktop/Machine_Learning_Sebestian/Potato_Chip_CNN/model.keras')  # or 'model_name.h5'
+model_path = os.path.join(os.path.dirname(__file__), 'model.keras')
+model = tf.keras.models.load_model(model_path)
 
 # Function to preprocess the uploaded image
 def preprocess_image(uploaded_image):
